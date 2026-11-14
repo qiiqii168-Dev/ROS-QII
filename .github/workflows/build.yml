@@ -1,0 +1,93 @@
+name: ROS QII Multi Platform Build
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "flutter_app/**"
+      - ".github/workflows/build.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Prepare
+        run: |
+          cd flutter_app
+          flutter create --platforms=android,ios,windows .
+          flutter pub get
+
+      - name: Build APK
+        run: |
+          cd flutter_app
+          flutter build apk --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ROS-QII-APK
+          path: flutter_app/build/app/outputs/flutter-apk/app-release.apk
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Prepare
+        run: |
+          cd flutter_app
+          flutter create --platforms=windows,android,ios .
+          flutter pub get
+
+      - name: Build EXE
+        run: |
+          cd flutter_app
+          flutter build windows --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ROS-QII-Windows
+          path: flutter_app/build/windows/x64/runner/Release/
+
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Prepare
+        run: |
+          cd flutter_app
+          flutter create --platforms=ios,android,windows .
+          flutter pub get
+
+      - name: Build unsigned iOS app
+        run: |
+          cd flutter_app
+          flutter build ios --release --no-codesign
+
+      - name: Package unsigned IPA
+        run: |
+          mkdir -p Payload
+          cp -R flutter_app/build/ios/iphoneos/Runner.app Payload/
+          zip -qr ROS-QII-Unsigned.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ROS-QII-Unsigned-IPA
+          path: ROS-QII-Unsigned.ipa
